@@ -1,0 +1,36 @@
+[project]
+name = "flight-delay"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Michał Syrkiewicz", email = "micaet@spoko.pl" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=3.0.3",
+    "pyarrow>=24.0.0",
+    "requests>=2.34.2",
+    "truststore>=0.10.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Sieć z inspekcją TLS: używaj magazynu certyfikatów Windows zamiast wbudowanego.
+native-tls = true
+# Cache (C:) i projekt (D:) na różnych dyskach — hardlink niemożliwy, kopiuj.
+link-mode = "copy"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+    "jupyterlab>=4.6.1",
+    "matplotlib>=3.11.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+    "seaborn>=0.13.2",
+    "tqdm>=4.68.4",
+]

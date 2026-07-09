@@ -1,0 +1,23 @@
+# --- Python / uv ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# --- Dane (za duże do repo; odtwarzalne skryptem ingestion) ---
+data/raw/
+data/processed/
+data/interim/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- MLflow (Faza B) ---
+mlruns/
+
+# --- System / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
