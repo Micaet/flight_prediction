@@ -39,4 +39,4 @@ data/              # dane
 
 ## Stack
 
-Python 3.11 · uv · pandas/pyarrow · XGBoost · MLflow · PySpark · Airflow · FastAPI · Docker · pytest · GitHub Actions
+Python 3.11 · uv · pandas/pyarrow · MLflow · PySpark · Airflow · FastAPI · Docker
