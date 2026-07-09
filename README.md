@@ -7,7 +7,7 @@ Klasyfikacja binarna — czy lot spóźni się o więcej niż **X minut**.
 ## Wymagania
 
 - [uv](https://docs.astral.sh/uv/)
-- Python 3.11 (uv pobierze automatycznie)
+- Python 3.11
 
 ## Uruchomienie
 
