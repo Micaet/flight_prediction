@@ -21,3 +21,8 @@ mlruns/
 Thumbs.db
 .idea/
 .vscode/
+
+PLAN.md
+CLAUDE.md
+.gitattributes
+notebooks/test.ipynb
