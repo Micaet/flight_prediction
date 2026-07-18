@@ -9,7 +9,7 @@ Uruchomienie z linii poleceń (pobiera cały rok 2024 do data/raw/):
     uv run python -m flight_delay.ingestion.bts --year 2024
 
 Idempotentność: `download_month` pomija pobieranie, jeśli docelowy ZIP już
-istnieje i ma niezerowy rozmiar — ponowny run nie ściąga danych drugi raz.
+istnieje i ma niezerowy rozmiar - ponowny run nie ściąga danych drugi raz.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ BASE_URL = (
 # Domyślny katalog na surowe dane (względem korzenia repo).
 DEFAULT_RAW_DIR = Path(__file__).resolve().parents[3] / "data" / "raw"
 
-# Nagłówek User-Agent — serwer BTS bywa wrażliwy na brak przeglądarkowego UA.
+# Nagłówek User-Agent - serwer BTS bywa wrażliwy na brak przeglądarkowego UA.
 _HEADERS = {"User-Agent": "Mozilla/5.0 (flight-delay-prediction; dane edukacyjne)"}
 
 
@@ -67,7 +67,7 @@ def download_month(
         return dest
 
     url = month_url(year, month)
-    # Zapis do pliku tymczasowego i atomowe przeniesienie — przerwane pobieranie
+    # Zapis do pliku tymczasowego i atomowe przeniesienie - przerwane pobieranie
     # nie zostawia uszkodzonego pliku wyglądającego na kompletny.
     tmp = dest.with_suffix(".zip.part")
     with requests.get(url, headers=_HEADERS, stream=True, timeout=timeout) as resp:

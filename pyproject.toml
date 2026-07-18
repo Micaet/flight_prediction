@@ -22,7 +22,7 @@ build-backend = "uv_build"
 [tool.uv]
 # Sieć z inspekcją TLS: używaj magazynu certyfikatów Windows zamiast wbudowanego.
 native-tls = true
-# Cache (C:) i projekt (D:) na różnych dyskach — hardlink niemożliwy, kopiuj.
+# Cache (C:) i projekt (D:) na różnych dyskach - hardlink niemożliwy, kopiuj.
 link-mode = "copy"
 
 [dependency-groups]

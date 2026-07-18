@@ -1,7 +1,7 @@
 # Flight Delay Prediction
 
 Projekt na danych **US DOT BTS On-Time Performance**.
-Klasyfikacja binarna — czy lot spóźni się o więcej niż **X minut**.
+Klasyfikacja binarna - czy lot spóźni się o więcej niż **X minut**.
 
 
 ## Wymagania

@@ -12,15 +12,15 @@ KEEP_COLS = [
     "Reporting_Airline", "Tail_Number",
     # trasa
     "Origin", "Dest", "OriginState", "DestState",
-    # rozkładowe — znane PRZED lotem => bezpieczne cechy modelu
+    # rozkładowe - znane PRZED lotem => bezpieczne cechy modelu
     "CRSDepTime", "CRSArrTime", "CRSElapsedTime", "Distance", "DistanceGroup",
-    # wykonanie — PO locie => tylko EDA, NIE cechy (leakage)
+    # wykonanie - PO locie => tylko EDA, NIE cechy (leakage)
     "DepDelay", "DepDelayMinutes", "DepDel15",
     "ArrDelay", "ArrDelayMinutes", "ArrDel15",
     "ActualElapsedTime", "AirTime", "TaxiOut", "TaxiIn",
     # status
     "Cancelled", "Diverted", "CancellationCode",
-    # przyczyny opóźnień — PO locie => złoto do EDA "co napędza"
+    # przyczyny opóźnień - PO locie => złoto do EDA "co napędza"
     "CarrierDelay", "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay",
 ]
 
