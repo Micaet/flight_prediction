@@ -1,5 +1,4 @@
-"""Time-based train/test split
-"""
+"""Time-based train/test split."""
 
 from __future__ import annotations
 

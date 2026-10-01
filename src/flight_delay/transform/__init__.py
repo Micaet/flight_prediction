@@ -1,4 +1,1 @@
-"""Transformacje danych: czyszczenie, konwersja do Parquet, feature engineering.
-
-Faza A: pandas. Faza B: te same kroki przepisane na PySpark.
-"""
+"""Raw ZIP to Parquet conversion and feature engineering."""

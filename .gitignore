@@ -26,3 +26,6 @@ PLAN.md
 CLAUDE.md
 .gitattributes
 notebooks/test.ipynb
+
+reports/
+models/ 

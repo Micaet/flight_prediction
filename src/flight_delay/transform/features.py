@@ -1,11 +1,7 @@
-"""Feature engineering for the flight-delay model (S6).
+"""Feature engineering (prototype in `notebooks/FE.ipynb`).
 
-The prototype lives in `notebooks/FE.ipynb`; this module is the reusable version.
-Phase B (Spark / Airflow) wraps these functions instead of re-deriving the logic.
-
-Horizon: we predict BEFORE departure, so no at-departure or post-flight column may
-enter the feature matrix. `SAFE_RAW` is a whitelist rather than a blacklist so that
-a newly appearing column drops out by default instead of sneaking in.
+Prediction happens before departure, so only schedule columns are allowed in.
+`SAFE_RAW` is a whitelist, so any new raw column stays out by default.
 """
 
 from __future__ import annotations
@@ -45,29 +41,21 @@ DELAY_THRESHOLD_MIN: int = 15
 
 
 def prepare_population(df: pd.DataFrame) -> pd.DataFrame:
-    """Restrict to completed flights: drop cancelled and diverted, reset the index.
-
-    Cancelled (1.36%) and diverted (0.25%) flights have no arrival delay, so they
-    can neither be labelled nor predicted; they are out of the model population.
+    """Drop cancelled (1.36%) and diverted (0.25%) flights - they have no arrival delay.
     """
     return df.loc[(df["Cancelled"] == False) & (df["Diverted"] == False), :].copy().reset_index(drop=True)
 
 
 def make_label(df: pd.DataFrame, threshold: int = DELAY_THRESHOLD_MIN) -> pd.DataFrame:
-    """Binary label: 1 if the flight arrived `threshold`+ minutes late.
-
-    Validated against the BTS `ArrDel15` column (agreement 1.0 row for row).
-    """
+    """y = 1 if ArrDelay >= threshold. Matches BTS `ArrDel15` exactly for 15 min."""
     df["y"] = df["ArrDelay"].ge(threshold).astype(int)
     return df
 
 
 def add_free_features(flights: pd.DataFrame) -> pd.DataFrame:
-    """Whitelist columns plus the features derivable from a single row.
+    """Whitelist columns plus features computed from a single row.
 
-    `DepHour` decodes `CRSDepTime` (HHMM as an integer, so not linear in time)
-    and maps 2400 to 0. `IsWeekend` / `Season` are partly redundant for a tree,
-    but the linear baseline in S7 cannot find those thresholds on its own.
+    CRSDepTime is HHMM as an int, and 2400 means midnight -> DepHour 0.
     """
     df = flights[SAFE_RAW].copy()
     df["DepHour"] = (flights["CRSDepTime"] // 100).replace(24, 0)
@@ -83,10 +71,10 @@ M = 100
 PRIOR = None 
 
 def add_history_feature(frame : pd.DataFrame, keys: str | list[str], m: int = M, prior: float | None = PRIOR) -> np.ndarray:
-    """Leakage-safe historical delay rate for `keys`, using only days strictly before each flight.
+    """Delay rate for `keys` from days strictly before each flight, smoothed toward `prior`.
 
-    Smoothed toward `prior` with strength `m`. Returns a float32 array aligned to `frame`'s rows.
-    `keys`: a column name or a list (e.g. "Origin", or ["Origin", "Dest"] for a route).
+    `keys` is a column or a list, e.g. ["Origin", "Dest"] for a route.
+    Returns a float32 array in `frame`'s row order.
     """
     prior = prior if prior is not None else frame["y"].mean()
     if isinstance(keys, str):
@@ -109,11 +97,9 @@ def add_history_feature(frame : pd.DataFrame, keys: str | list[str], m: int = M,
 
 
 def add_congestion_feature(df: pd.DataFrame) -> np.ndarray:
-    """Scheduled departures from this airport, in this hour, on this day.
+    """Scheduled departures from the same airport, day and hour.
 
-    Built from the schedule alone, so it carries no label information and may use
-    the current day. This is the hub-congestion effect found in EDA2, handed to
-    the model directly instead of hoping it rediscovers it from raw columns.
+    Schedule only, so using the same day is fine here.
     """
     df["DepHour"] = (df["CRSDepTime"] // 100).replace(24, 0)
     df["OriginHourCongestion"] = (
@@ -128,13 +114,10 @@ def build_features(
     m: int = M,
     prior: float | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, pd.Series]:
-    """Raw BTS frame to model inputs.
+    """Raw BTS frame -> `(X, y, flight_date)`.
 
-    Returns `(X, y, flight_date)`. `flight_date` is kept aside deliberately: it
-    drives the time-based split in S8 but is not a feature.
-
-    Missing values are left as NaN on purpose - XGBoost learns a default branch,
-    which is more honest than imputing a mean.
+    `flight_date` is only for the time split, not a feature. NaNs are left
+    for XGBoost to handle.
     """
     df = prepare_population(df)
     df = make_label(df)

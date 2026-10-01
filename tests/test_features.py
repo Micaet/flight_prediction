@@ -1,10 +1,4 @@
-"""Tests for the feature engineering in `flight_delay.transform.features`.
-
-Everything runs on tiny hand-built frames: a test that needs 7 million rows is a
-test nobody runs. The values below are small enough to verify with a calculator,
-which is the point - the leakage guard is only worth something if a wrong result
-is obvious.
-"""
+"""Tests for `flight_delay.transform.features` on tiny hand-made frames."""
 
 from __future__ import annotations
 
@@ -17,17 +11,12 @@ from flight_delay.transform import features as F
 
 @pytest.fixture
 def history_frame() -> pd.DataFrame:
-    """Three days for carrier AA, plus a second carrier to prove keys stay separate.
+    """AA over three days plus one BB flight.
 
-    AA: day 1 -> [0, 0]      (2 flights, 0 delayed)
-        day 2 -> [1, 1, 1]   (3 flights, 3 delayed)
-        day 3 -> [0]         (1 flight, ignored by its own history)
-    BB: day 2 -> [1]         (must not touch AA's numbers)
-
-    With m=2 and prior=0.5 the expected AA rates are:
-        day 1 -> (0 + 2*0.5) / (0 + 2) = 0.5      (cold start = prior)
-        day 2 -> (0 + 1) / (2 + 2)     = 0.25     (day 1 only)
-        day 3 -> (3 + 1) / (5 + 2)     = 4/7      (days 1-2, never day 3)
+    Expected AA rates with m=2, prior=0.5:
+        day 1 -> (0 + 2*0.5) / (0 + 2) = 0.5
+        day 2 -> (0 + 1) / (2 + 2)     = 0.25
+        day 3 -> (3 + 1) / (5 + 2)     = 4/7
     """
     rows = [
         ("2024-01-01", "AA", 0),
@@ -41,13 +30,13 @@ def history_frame() -> pd.DataFrame:
     frame = pd.DataFrame(rows, columns=["FlightDate", "Reporting_Airline", "y"])
     frame["FlightDate"] = pd.to_datetime(frame["FlightDate"])
     frame["Reporting_Airline"] = frame["Reporting_Airline"].astype("category")
-    frame["row_id"] = range(len(frame))  # marker: the merge must not reorder rows
+    frame["row_id"] = range(len(frame))
     return frame
 
 
 @pytest.fixture
 def raw_flights() -> pd.DataFrame:
-    """A miniature version of the processed BTS frame, including rows that must be dropped."""
+    """Small processed BTS frame with one cancelled and one diverted flight."""
     n = 8
     frame = pd.DataFrame(
         {
@@ -66,7 +55,6 @@ def raw_flights() -> pd.DataFrame:
             "CRSElapsedTime": np.float32(120.0),
             "Distance": np.float32(400.0),
             "DistanceGroup": np.int8(2),
-            # post-flight columns: must never reach X
             "ArrDelay": np.array([-5.0, 30.0, 0.0, 20.0, -10.0, 45.0, 5.0, 60.0], dtype="float32"),
             "DepDelay": np.float32(10.0),
             "TaxiOut": np.float32(15.0),
@@ -79,38 +67,86 @@ def raw_flights() -> pd.DataFrame:
 
 
 def test_population_drops_cancelled_and_diverted(raw_flights: pd.DataFrame) -> None:
-    """Cancelled and diverted flights leave the population; the index is reset."""
-    raise NotImplementedError  # TODO
+    population = F.prepare_population(raw_flights)
+
+    assert len(population) == 6
+    assert not population["Cancelled"].any()
+    assert not population["Diverted"].any()
+    # Needed - with a gapped index the history features end up as NaN.
+    assert population.index.equals(pd.RangeIndex(6))
+    assert len(raw_flights) == 8
 
 
 def test_label_matches_threshold(raw_flights: pd.DataFrame) -> None:
-    """y is 1 exactly when ArrDelay >= 15, boundary included."""
-    raise NotImplementedError  # TODO
+    frame = raw_flights.copy()
+    frame["ArrDelay"] = np.array(
+        [14.0, 14.9, 15.0, 15.1, 100.0, -20.0, 0.0, 15.0], dtype="float32"
+    )
+
+    labelled = F.make_label(frame)
+    np.testing.assert_array_equal(
+        labelled["y"].to_numpy(), np.array([0, 0, 1, 1, 1, 0, 0, 1])
+    )
+
+    relabelled = F.make_label(frame, threshold=100)
+    np.testing.assert_array_equal(
+        relabelled["y"].to_numpy(), np.array([0, 0, 0, 0, 1, 0, 0, 0])
+    )
 
 
 def test_history_cold_start_equals_prior(history_frame: pd.DataFrame) -> None:
-    """A key seen for the first time gets the prior, not NaN."""
-    raise NotImplementedError  # TODO
+    hist = F.add_history_feature(history_frame, "Reporting_Airline", m=2, prior=0.5)
+
+    assert not np.isnan(hist).any()
+    np.testing.assert_allclose(hist[[0, 1, 5]], 0.5, rtol=1e-6)
 
 
 def test_history_uses_only_strictly_earlier_days(history_frame: pd.DataFrame) -> None:
-    """Day 3 for AA equals 4/7: days 1-2 only, its own day excluded.
+    hist = F.add_history_feature(history_frame, "Reporting_Airline", m=2, prior=0.5)
 
-    This is the test that fails if `<` ever becomes `<=`.
-    """
-    raise NotImplementedError  # TODO
+    expected = np.array([0.5, 0.5, 0.25, 0.25, 0.25, 0.5, 4 / 7], dtype="float32")
+    np.testing.assert_allclose(hist, expected, rtol=1e-6)
+    # 0.5 is what you'd get if day 3 counted itself.
+    assert hist[6] != pytest.approx(0.5)
 
 
 def test_history_keeps_keys_independent(history_frame: pd.DataFrame) -> None:
-    """BB's flights must not move AA's history, and row order must survive the merge."""
-    raise NotImplementedError  # TODO
+    full = F.add_history_feature(history_frame, "Reporting_Airline", m=2, prior=0.5)
+
+    # "BB" stays as an unused category here, so this also checks observed=True.
+    aa_only = history_frame[history_frame["Reporting_Airline"] == "AA"]
+    without_bb = F.add_history_feature(aa_only, "Reporting_Airline", m=2, prior=0.5)
+    np.testing.assert_allclose(full[[0, 1, 2, 3, 4, 6]], without_bb, rtol=1e-6)
+
+    # Row order must survive the merge.
+    shuffled = history_frame.sample(frac=1, random_state=0)
+    hist_shuffled = F.add_history_feature(shuffled, "Reporting_Airline", m=2, prior=0.5)
+    by_row_id = dict(zip(shuffled["row_id"], hist_shuffled))
+    np.testing.assert_allclose(
+        [by_row_id[row_id] for row_id in history_frame["row_id"]], full, rtol=1e-6
+    )
 
 
 def test_no_leakage_column_reaches_x(raw_flights: pd.DataFrame) -> None:
-    """No column from LEAKAGE appears in X, and FlightDate is returned separately."""
-    raise NotImplementedError  # TODO
+    X, y, flight_date = F.build_features(raw_flights, m=2, prior=0.5)
+
+    assert not set(F.LEAKAGE) & set(X.columns)
+    assert "FlightDate" not in X.columns
+    assert flight_date.name == "FlightDate"
+    assert len(flight_date) == len(y) == len(X) == 6
+
+    # 12 raw + 3 free + 4 history + 1 congestion
+    assert X.shape == (6, 20)
+    np.testing.assert_array_equal(y, np.array([0, 1, 0, 1, 0, 1], dtype="int8"))
+
+    histories = ["CarrierHist", "OriginHist", "RouteHist", "OriginHourHist"]
+    assert X[histories].notna().all().all()
 
 
 def test_dep_hour_decoding(raw_flights: pd.DataFrame) -> None:
-    """CRSDepTime 1345 -> 13 and 2400 -> 0 (midnight, not hour 24)."""
-    raise NotImplementedError  # TODO
+    X = F.add_free_features(F.prepare_population(raw_flights))
+
+    np.testing.assert_array_equal(
+        X["DepHour"].to_numpy(), np.array([6, 13, 0, 6, 13, 0])
+    )
+    assert X["DepHour"].max() <= 23

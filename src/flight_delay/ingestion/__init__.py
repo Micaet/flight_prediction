@@ -1,9 +1,8 @@
-"""Pobieranie surowych danych (BTS On-Time Performance, OpenSky, Open-Meteo).
+"""Raw data download.
 
-Środowisko ma inspekcję TLS (firmowy/AV root CA). `truststore.inject_into_ssl()`
-przełącza weryfikację certyfikatów w Pythonie na systemowy magazyn Windows,
-który ten root CA zna - dzięki temu `requests` nie rzuca CERTIFICATE_VERIFY_FAILED.
-Wołane raz przy imporcie pakietu ingestion (bezpieczniejsze niż verify=False).
+My machine does TLS inspection with its own root CA, so `requests` fails with
+CERTIFICATE_VERIFY_FAILED. truststore makes Python use the Windows cert store,
+which knows that CA.
 """
 
 import truststore
